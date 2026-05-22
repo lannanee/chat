@@ -77,14 +77,16 @@ export const createConversation = async (req, res) => {
     const formatted = { ...conversation.toObject(), participants };
 
     if (type === "group") {
-      memberIds.forEach((userId) => {
-        io.to(userId).emit("new-group", formatted);
+      // Emit to all group members including the creator
+      const allMemberIds = [userId, ...memberIds];
+      allMemberIds.forEach((memberId) => {
+        io.to(memberId.toString()).emit("new-group", formatted);
       });
     }
 
     if (type === "direct") {
-      io.to(userId).emit("new-group", formatted);
-      io.to(memberIds[0]).emit("new-group", formatted);
+      io.to(userId.toString()).emit("new-group", formatted);
+      io.to(memberIds[0].toString()).emit("new-group", formatted);
     }
 
     return res.status(201).json({ conversation: formatted });

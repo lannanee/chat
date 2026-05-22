@@ -74,8 +74,17 @@ export const useSocketStore = create<SocketState>((set, get) => ({
 
     // new group chat
     socket.on("new-group", (conversation) => {
-      useChatStore.getState().addConvo(conversation);
-      socket.emit("join-conversation", conversation._id);
+      try {
+        // Add the conversation to the store immediately
+        useChatStore.getState().addConvo(conversation);
+        
+        // Join the conversation room for real-time updates
+        socket.emit("join-conversation", conversation._id);
+        
+        console.log("New group chat received:", conversation._id);
+      } catch (error) {
+        console.error("Error handling new-group event:", error);
+      }
     });
   },
   disconnectSocket: () => {

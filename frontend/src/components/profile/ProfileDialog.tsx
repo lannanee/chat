@@ -19,7 +19,7 @@ const ProfileDialog = ({ open, setOpen }: ProfileDialogProps) => {
       open={open}
       onOpenChange={setOpen}
     >
-      <DialogContent className="overflow-y-auto max-h-[95vh] p-0 bg-transparent border-0 shadow-2xl">
+      <DialogContent className="overflow-y-auto max-h-[95vh] p-0 bg-transparent border-0 shadow-2xl" aria-describedby="profile-dialog-description">
         <div className="bg-gradient-glass">
           <div className="max-w-4xl mx-auto p-4">
             {/* heading */}
@@ -27,6 +27,9 @@ const ProfileDialog = ({ open, setOpen }: ProfileDialogProps) => {
               <DialogTitle className="text-2xl font-bold text-foreground">
                 Profile & Settings
               </DialogTitle>
+              <p id="profile-dialog-description" className="text-sm text-muted-foreground mt-2">
+                Quản lý thông tin cá nhân, cài đặt ứng dụng và bảo mật tài khoản của bạn
+              </p>
             </DialogHeader>
 
             <ProfileCard user={user} />

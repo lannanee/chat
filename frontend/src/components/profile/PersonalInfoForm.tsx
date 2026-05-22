@@ -1,4 +1,6 @@
 import { Heart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Card,
   CardHeader,
@@ -11,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { User } from "@/types/user";
+import { userService } from "@/services/userService";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 type EditableField = {
   key: keyof Pick<User, "displayName" | "username" | "email" | "phone">;
@@ -30,6 +34,74 @@ type Props = {
 };
 
 const PersonalInfoForm = ({ userInfo }: Props) => {
+  const [formData, setFormData] = useState<Partial<User>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const { setUser } = useAuthStore();
+
+  useEffect(() => {
+    if (userInfo) {
+      setFormData({
+        displayName: userInfo.displayName,
+        username: userInfo.username,
+        email: userInfo.email,
+        phone: userInfo.phone || "",
+        bio: userInfo.bio || "",
+      });
+    }
+  }, [userInfo]);
+
+  const handleChange = (
+    field: string,
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setHasChanges(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.displayName || formData.displayName.trim() === "") {
+      toast.error("Tên hiển thị không thể trống");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await userService.updateProfile({
+        displayName: formData.displayName,
+        bio: formData.bio,
+        phone: formData.phone,
+        email: formData.email,
+      });
+
+      // Update the auth store with new user data
+      setUser(response.user);
+      setHasChanges(false);
+      toast.success("Cập nhật thông tin thành công!");
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast.error(error.response?.data?.message || "Lỗi xảy ra khi cập nhật");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (userInfo) {
+      setFormData({
+        displayName: userInfo.displayName,
+        username: userInfo.username,
+        email: userInfo.email,
+        phone: userInfo.phone || "",
+        bio: userInfo.bio || "",
+      });
+    }
+    setHasChanges(false);
+  };
+
   if (!userInfo) return null;
 
   return (
@@ -55,8 +127,9 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
               <Input
                 id={key}
                 type={type ?? "text"}
-                value={userInfo[key] ?? ""}
-                onChange={() => {}}
+                value={String(formData[key] ?? "")}
+                onChange={(e) => handleChange(key, e.target.value)}
+                disabled={key === "username"}
                 className="glass-light border-border/30"
               />
             </div>
@@ -68,15 +141,30 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
           <Textarea
             id="bio"
             rows={3}
-            value={userInfo.bio ?? ""}
-            onChange={() => {}}
+            value={formData.bio ?? ""}
+            onChange={(e) => handleChange("bio", e.target.value)}
             className="glass-light border-border/30 resize-none"
+            placeholder="Viết một vài dòng giới thiệu về bản thân..."
           />
         </div>
 
-        <Button className="w-full md:w-auto bg-gradient-primary hover:opacity-90 transition-opacity">
-          Lưu thay đổi
-        </Button>
+        <div className="flex gap-2 pt-2">
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || isLoading}
+            className="flex-1 bg-gradient-primary hover:opacity-90 transition-opacity"
+          >
+            {isLoading ? "Đang lưu..." : "Lưu thay đổi"}
+          </Button>
+          <Button
+            onClick={handleReset}
+            disabled={!hasChanges || isLoading}
+            variant="outline"
+            className="glass-light border-border/30"
+          >
+            Hủy
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

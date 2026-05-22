@@ -4,6 +4,7 @@ import { authService } from "@/services/authService";
 import type { AuthState } from "@/types/store";
 import { persist } from "zustand/middleware";
 import { useChatStore } from "./useChatStore";
+import { useSocketStore } from "./useSocketStore";
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -62,11 +63,24 @@ export const useAuthStore = create<AuthState>()(
       },
       signOut: async () => {
         try {
-          get().clearState();
+          // Disconnect socket first
+          const socketStore = useChatStore.getState();
+          useSocketStore.getState().disconnectSocket();
+          
+          // Wait a bit for socket to disconnect
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          
+          // Call backend signout
           await authService.signOut();
+          
+          // Clear state after backend confirms logout
+          get().clearState();
+          
           toast.success("Logout thành công!");
         } catch (error) {
           console.error(error);
+          // Even if signout fails on backend, clear local state
+          get().clearState();
           toast.error("Lỗi xảy ra khi logout. Hãy thử lại!");
         }
       },

@@ -24,23 +24,29 @@ io.on("connection", async (socket) => {
 
   // console.log(`${user.displayName} online với socket ${socket.id}`);
 
-  onlineUsers.set(user._id, socket.id);
+  onlineUsers.set(user._id.toString(), socket.id);
 
   io.emit("online-users", Array.from(onlineUsers.keys()));
 
-  const conversationIds = await getUserConversationsForSocketIO(user._id);
-  conversationIds.forEach((id) => {
-    socket.join(id);
-  });
-
-  socket.on("join-conversation", (conversationId) => {
-    socket.join(conversationId);
-  });
+  try {
+    const conversationIds = await getUserConversationsForSocketIO(user._id);
+    conversationIds.forEach((id) => {
+      socket.join(id.toString());
+    });
+  } catch (error) {
+    console.error("Error joining conversations on connect:", error);
+  }
 
   socket.join(user._id.toString());
 
+  socket.on("join-conversation", (conversationId) => {
+    if (conversationId) {
+      socket.join(conversationId.toString());
+    }
+  });
+
   socket.on("disconnect", () => {
-    onlineUsers.delete(user._id);
+    onlineUsers.delete(user._id.toString());
     io.emit("online-users", Array.from(onlineUsers.keys()));
     /* console.log(`socket disconnected: ${socket.id}`); */
   });
