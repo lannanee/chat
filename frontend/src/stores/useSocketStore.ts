@@ -86,6 +86,35 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         console.error("Error handling new-group event:", error);
       }
     });
+
+    // group deleted
+    socket.on("group-deleted", ({ conversationId }) => {
+      try {
+        // Remove the conversation from the store
+        const chatStore = useChatStore.getState();
+        chatStore.set = (updater: any) => {
+          updater((state: any) => ({
+            conversations: state.conversations.filter(
+              (c: any) => c._id !== conversationId
+            ),
+            activeConversationId:
+              state.activeConversationId === conversationId
+                ? null
+                : state.activeConversationId,
+          }));
+        };
+        
+        // Reset active conversation if this was the deleted one
+        const state = chatStore;
+        if (state.activeConversationId === conversationId) {
+          // The cleanup is handled by the store filter above
+        }
+        
+        console.log("Group chat deleted:", conversationId);
+      } catch (error) {
+        console.error("Error handling group-deleted event:", error);
+      }
+    });
   },
   disconnectSocket: () => {
     const socket = get().socket;

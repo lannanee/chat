@@ -241,3 +241,62 @@ export const markAsSeen = async (req, res) => {
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+
+export const deleteConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user._id.toString();
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Cuộc trò chuyện không tồn tại" });
+    }
+
+    // Check if user is a participant
+    const isParticipant = conversation.participants.some(
+      (p) => p.userId.toString() === userId
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Bạn không có quyền xoá cuộc trò chuyện này" });
+    }
+
+    // For group chats, only creator can delete
+    if (conversation.type === "group") {
+      if (conversation.group?.createdBy.toString() !== userId) {
+        return res.status(403).json({ message: "Chỉ người tạo nhóm mới có thể xoá" });
+      }
+
+      // Delete conversation and all messages
+      await Conversation.findByIdAndDelete(conversationId);
+      await Message.deleteMany({ conversationId });
+
+      // Notify all participants
+      io.to(conversationId).emit("group-deleted", {
+        conversationId,
+        message: `${conversation.group?.name} đã bị xoá`,
+      });
+    } else {
+      // For direct messages, remove user from participants
+      const updatedConversation = await Conversation.findByIdAndUpdate(
+        conversationId,
+        {
+          $pull: { "participants": { userId } },
+        },
+        { new: true }
+      );
+
+      // If no participants left, delete the conversation
+      if (!updatedConversation || updatedConversation.participants.length === 0) {
+        await Conversation.findByIdAndDelete(conversationId);
+        await Message.deleteMany({ conversationId });
+      }
+    }
+
+    return res.status(200).json({ message: "Đã xoá cuộc trò chuyện" });
+  } catch (error) {
+    console.error("Lỗi khi xoá conversation", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};

@@ -7,10 +7,11 @@ import UserAvatar from "./UserAvatar";
 import StatusBadge from "./StatusBadge";
 import UnreadCountBadge from "./UnreadCountBadge";
 import { useSocketStore } from "@/stores/useSocketStore";
+import { toast } from "sonner";
 
 const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
   const { user } = useAuthStore();
-  const { activeConversationId, setActiveConversation, messages, fetchMessages } =
+  const { activeConversationId, setActiveConversation, messages, fetchMessages, deleteConversation } =
     useChatStore();
   const { onlineUsers } = useSocketStore();
 
@@ -29,6 +30,16 @@ const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
     }
   };
 
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversation(id);
+      toast.success("Đã xoá cuộc trò chuyện");
+    } catch (error: any) {
+      console.error("Error deleting conversation:", error);
+      toast.error(error.response?.data?.message || "Lỗi xảy ra khi xoá cuộc trò chuyện");
+    }
+  };
+
   return (
     <ChatCard
       convoId={convo._id}
@@ -41,6 +52,7 @@ const DirectMessageCard = ({ convo }: { convo: Conversation }) => {
       isActive={activeConversationId === convo._id}
       onSelect={handleSelectConversation}
       unreadCount={unreadCount}
+      onDelete={handleDeleteConversation}
       leftSection={
         <>
           <UserAvatar

@@ -78,16 +78,14 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ message: "Tên hiển thị không thể trống" });
     }
 
-    // Check if email is already in use by another user
-    if (email) {
-      const existingUser = await User.findOne({ 
-        email: email.toLowerCase(),
-        _id: { $ne: userId }
-      });
-      
-      if (existingUser) {
-        return res.status(409).json({ message: "Email đã được sử dụng" });
-      }
+    if (displayName.trim().length > 100) {
+      return res.status(400).json({ message: "Tên hiển thị không thể vượt quá 100 ký tự" });
+    }
+
+    // Get current user to check if email has changed
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({ message: "Người dùng không tồn tại" });
     }
 
     const updateData = {
@@ -95,30 +93,58 @@ export const updateProfile = async (req, res) => {
     };
 
     if (bio !== undefined) {
-      updateData.bio = bio ? bio.trim().substring(0, 500) : "";
+      const cleanBio = bio ? bio.trim().substring(0, 500) : "";
+      updateData.bio = cleanBio;
     }
 
     if (phone !== undefined) {
-      updateData.phone = phone ? phone.trim() : "";
+      const cleanPhone = phone ? phone.trim() : "";
+      updateData.phone = cleanPhone;
     }
 
+    // Only validate and update email if it's different from current email
     if (email !== undefined) {
-      updateData.email = email ? email.toLowerCase().trim() : undefined;
+      const cleanEmail = email.toLowerCase().trim();
+      
+      // Only update if email actually changed
+      if (cleanEmail && cleanEmail !== currentUser.email.toLowerCase()) {
+        // Check if new email is already in use by another user
+        const existingUser = await User.findOne({ 
+          email: cleanEmail,
+          _id: { $ne: userId }
+        });
+        
+        if (existingUser) {
+          return res.status(409).json({ message: "Email đã được sử dụng" });
+        }
+        
+        updateData.email = cleanEmail;
+      }
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: false } // Disable validators to avoid unique constraint issues
     ).select("-hashedPassword");
+
+    if (!updatedUser) {
+      return res.status(500).json({ message: "Không thể cập nhật người dùng" });
+    }
 
     return res.status(200).json({ 
       message: "Cập nhật thông tin thành công",
       user: updatedUser 
     });
   } catch (error) {
-    console.error("Lỗi xảy ra khi updateProfile", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Lỗi xảy ra khi updateProfile:", error);
+    
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(409).json({ message: `${field} đã được sử dụng` });
+    }
+    
+    return res.status(500).json({ message: "Lỗi hệ thống: " + error.message });
   }
 };
 

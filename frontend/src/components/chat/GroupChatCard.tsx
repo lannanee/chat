@@ -4,20 +4,32 @@ import type { Conversation } from "@/types/chat";
 import ChatCard from "./ChatCard";
 import UnreadCountBadge from "./UnreadCountBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
+import { toast } from "sonner";
 
 const GroupChatCard = ({ convo }: { convo: Conversation }) => {
   const { user } = useAuthStore();
-  const { activeConversationId, setActiveConversation, messages, fetchMessages } =
+  const { activeConversationId, setActiveConversation, messages, fetchMessages, deleteConversation } =
     useChatStore();
 
   if (!user) return null;
 
   const unreadCount = convo.unreadCounts[user._id];
   const name = convo.group?.name ?? "";
+  
   const handleSelectConversation = async (id: string) => {
     setActiveConversation(id);
     if (!messages[id]) {
       await fetchMessages();
+    }
+  };
+
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversation(id);
+      toast.success("Đã xoá cuộc trò chuyện");
+    } catch (error: any) {
+      console.error("Error deleting conversation:", error);
+      toast.error(error.response?.data?.message || "Lỗi xảy ra khi xoá cuộc trò chuyện");
     }
   };
 
@@ -33,6 +45,7 @@ const GroupChatCard = ({ convo }: { convo: Conversation }) => {
       isActive={activeConversationId === convo._id}
       onSelect={handleSelectConversation}
       unreadCount={unreadCount}
+      onDelete={handleDeleteConversation}
       leftSection={
         <>
           {unreadCount > 0 && <UnreadCountBadge unreadCount={unreadCount} />}

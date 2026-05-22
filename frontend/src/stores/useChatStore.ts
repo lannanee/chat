@@ -229,6 +229,28 @@ export const useChatStore = create<ChatState>()(
           set({ loading: false });
         }
       },
+      deleteConversation: async (conversationId: string) => {
+        try {
+          set({ loading: true });
+          await chatService.deleteConversation(conversationId);
+
+          // Remove from conversations list
+          set((state) => ({
+            conversations: state.conversations.filter(
+              (c) => c._id !== conversationId
+            ),
+            activeConversationId:
+              state.activeConversationId === conversationId
+                ? null
+                : state.activeConversationId,
+          }));
+        } catch (error) {
+          console.error("Lỗi xảy ra khi xoá conversation", error);
+          throw error;
+        } finally {
+          set({ loading: false });
+        }
+      },
     }),
     {
       name: "chat-storage",

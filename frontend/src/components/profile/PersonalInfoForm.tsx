@@ -42,9 +42,10 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
   useEffect(() => {
     if (userInfo) {
       setFormData({
-        displayName: userInfo.displayName,
-        username: userInfo.username,
-        email: userInfo.email,
+        _id: userInfo._id,
+        displayName: userInfo.displayName || "",
+        username: userInfo.username || "",
+        email: userInfo.email || "",
         phone: userInfo.phone || "",
         bio: userInfo.bio || "",
       });
@@ -70,12 +71,16 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
 
     try {
       setIsLoading(true);
-      const response = await userService.updateProfile({
-        displayName: formData.displayName,
-        bio: formData.bio,
-        phone: formData.phone,
-        email: formData.email,
-      });
+      const updatePayload = {
+        displayName: formData.displayName?.trim() || "",
+        bio: formData.bio?.trim() || "",
+        phone: formData.phone?.trim() || "",
+        email: formData.email?.trim() || "",
+      };
+      
+      console.log("Updating profile with:", updatePayload);
+      
+      const response = await userService.updateProfile(updatePayload);
 
       // Update the auth store with new user data
       setUser(response.user);
@@ -83,7 +88,9 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
       toast.success("Cập nhật thông tin thành công!");
     } catch (error: any) {
       console.error("Error updating profile:", error);
-      toast.error(error.response?.data?.message || "Lỗi xảy ra khi cập nhật");
+      const errorMessage = error.response?.data?.message || error.message || "Lỗi xảy ra khi cập nhật";
+      console.error("Error details:", error.response?.data);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -92,9 +99,10 @@ const PersonalInfoForm = ({ userInfo }: Props) => {
   const handleReset = () => {
     if (userInfo) {
       setFormData({
-        displayName: userInfo.displayName,
-        username: userInfo.username,
-        email: userInfo.email,
+        _id: userInfo._id,
+        displayName: userInfo.displayName || "",
+        username: userInfo.username || "",
+        email: userInfo.email || "",
         phone: userInfo.phone || "",
         bio: userInfo.bio || "",
       });
