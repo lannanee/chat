@@ -63,7 +63,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                   />
                 </a>
 
-                <h1 className="text-2xl font-bold">Tạo tài khoản Moji</h1>
+                <h1 className="text-2xl font-bold">Tạo tài khoản Camiu</h1>
                 <p className="text-muted-foreground text-balance">
                   Chào mừng bạn! Hãy đăng ký để bắt đầu!
                 </p>
@@ -117,7 +117,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
                 <Input
                   type="text"
                   id="username"
-                  placeholder="moji"
+                  placeholder="camiu"
                   {...register("username")}
                 />
                 {errors.username && (

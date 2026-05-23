@@ -59,7 +59,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
 
                 <h1 className="text-2xl font-bold">Chào mừng quay lại</h1>
                 <p className="text-muted-foreground text-balance">
-                  Đăng nhập vào tài khoản Moji của bạn
+                  Đăng nhập vào tài khoản Camiu của bạn
                 </p>
               </div>
 
@@ -74,7 +74,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
                 <Input
                   type="text"
                   id="username"
-                  placeholder="moji"
+                  placeholder="camiu"
                   {...register("username")}
                 />
                 {errors.username && (
