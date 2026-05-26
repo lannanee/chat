@@ -147,7 +147,7 @@ const MessageItem = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = message.fileName ?? "file";
+      a.download = decodeURIComponent(message.fileName ?? "file");
       document.body.appendChild(a);
       a.click();
       a.remove();
