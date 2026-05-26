@@ -21,7 +21,7 @@ const CallWindow = () => {
   const { socket } = useSocketStore();
   const { user } = useAuthStore();
   const { createOffer } = useWebRTC();
-  
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -39,22 +39,24 @@ const CallWindow = () => {
   useEffect(() => {
     if (activeCall?.callType === "video" && remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(console.error);
     } else if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(console.error);
     }
   }, [remoteStream, activeCall?.callType]);
 
   // Khi status chuyển sang "active", người gọi tạo WebRTC offer
   useEffect(() => {
-  if (
-    activeCall?.status === "active" &&
-    activeCall.caller._id === user?._id &&
-    activeCall.callId // ← đảm bảo có callId thật
-  ) {
-    createOffer(activeCall.remoteUser._id, activeCall.callId);
-    setCallStartTime(Date.now());
-  }
-}, [activeCall?.status, activeCall?.callId]); // ← thêm callId vào deps
+    if (
+      activeCall?.status === "active" &&
+      activeCall.caller._id === user?._id &&
+      activeCall.callId
+    ) {
+      createOffer(activeCall.remoteUser._id, activeCall.callId);
+      setCallStartTime(Date.now());
+    }
+  }, [activeCall?.status, activeCall?.callId]);
 
   // Tính toán thời lượng cuộc gọi
   useEffect(() => {
@@ -78,6 +80,13 @@ const CallWindow = () => {
     setCallStartTime(null);
   };
 
+  const handleUnmuteAudio = () => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = false;
+      remoteAudioRef.current.play().catch(console.error);
+    }
+  };
+
   if (!activeCall || activeCall.status !== "active") return null;
 
   const isVideoCall = activeCall.callType === "video";
@@ -85,7 +94,15 @@ const CallWindow = () => {
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
       {/* Audio element ẩn — phát âm thanh từ đầu kia (chỉ audio call) */}
-      {!isVideoCall && <audio ref={remoteAudioRef} autoPlay playsInline />}
+      {!isVideoCall && (
+        <audio
+          ref={remoteAudioRef}
+          autoPlay
+          playsInline
+          muted={false}
+          style={{ display: "none" }}
+        />
+      )}
 
       {/* VIDEO CALL LAYOUT */}
       {isVideoCall ? (
@@ -119,7 +136,6 @@ const CallWindow = () => {
 
           {/* Thanh điều khiển */}
           <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4">
-            {/* Tắt/Bật Mic */}
             <Button
               size="icon"
               variant="outline"
@@ -136,7 +152,6 @@ const CallWindow = () => {
               )}
             </Button>
 
-            {/* Tắt/Bật Camera */}
             <Button
               size="icon"
               variant="outline"
@@ -153,7 +168,6 @@ const CallWindow = () => {
               )}
             </Button>
 
-            {/* Kết thúc cuộc gọi */}
             <Button
               size="icon"
               variant="destructive"
@@ -188,9 +202,19 @@ const CallWindow = () => {
             <p className="text-muted-foreground mt-1">{callDuration}</p>
           </div>
 
+          {/* Nút bật âm thanh (fix Android autoplay) */}
+          {remoteStream && (
+            <Button
+              variant="outline"
+              className="text-sm"
+              onClick={handleUnmuteAudio}
+            >
+              🔊 Bật âm thanh
+            </Button>
+          )}
+
           {/* Thanh điều khiển */}
           <div className="flex items-center gap-6">
-            {/* Tắt/Bật Mic */}
             <Button
               size="icon"
               variant="outline"
@@ -205,7 +229,6 @@ const CallWindow = () => {
               )}
             </Button>
 
-            {/* Kết thúc cuộc gọi */}
             <Button
               size="icon"
               variant="destructive"
