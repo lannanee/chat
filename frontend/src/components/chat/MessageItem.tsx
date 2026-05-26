@@ -137,14 +137,29 @@ const MessageItem = ({
                   )}
                 </div>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 shrink-0"
-                  onClick={() => window.open(message.fileUrl, "_blank")}
-                  title="Tải xuống"
-                >
-                  <Download className="size-4" />
-                </Button>
+  variant="ghost"
+  size="icon"
+  className="size-8 shrink-0"
+  onClick={async () => {
+    try {
+      const response = await fetch(message.fileUrl!);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = message.fileName ?? "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      window.open(message.fileUrl!, "_blank");
+    }
+  }}
+  title="Tải xuống"
+>
+  <Download className="size-4" />
+</Button>
               </div>
             </Card>
           )}

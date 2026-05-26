@@ -201,6 +201,7 @@ export const uploadFileMessage = async (req, res) => {
       folder: "file-messages",
       use_filename: true,
       unique_filename: true,
+      flags: "attachment",
     });
 
     const message = await Message.create({
