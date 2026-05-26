@@ -1,123 +1,53 @@
-import Conversation from "../models/Conversation.js";
-import Message from "../models/Message.js";
-import {
-  emitNewMessage,
-  updateConversationAfterCreateMessage,
-} from "../utils/messageHelper.js";
-import { io } from "../socket/index.js";
+import express from "express";
+import dotenv from "dotenv";
+import { connectDB } from "./libs/db.js";
+import authRoute from "./routes/authRoute.js";
+import userRoute from "./routes/userRoute.js";
+import friendRoute from "./routes/friendRoute.js";
+import messageRoute from "./routes/messageRoute.js";
+import conversationRoute from "./routes/conversationRoute.js";
+import cookieParser from "cookie-parser";
+import { protectedRoute } from "./middlewares/authMiddleware.js";
+import cors from "cors";
+import swaggerUi from "swagger-ui-express";
+import fs from "fs";
+import { app, server } from "./socket/index.js";
 import { v2 as cloudinary } from "cloudinary";
 
-export const sendDirectMessage = async (req, res) => {
-  try {
-    const { recipientId, content, conversationId } = req.body;
-    const senderId = req.user._id;
+dotenv.config();
 
-    let conversation;
+// const app = express();
+const PORT = process.env.PORT || 5001;
 
-    if (!content) {
-      return res.status(400).json({ message: "Thiếu nội dung" });
-    }
+// middlewares
+app.use(express.json());
+app.use(cookieParser());
+app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 
-    if (conversationId) {
-      conversation = await Conversation.findById(conversationId);
-    }
+// CLOUDINARY Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-    if (!conversation) {
-      conversation = await Conversation.create({
-        type: "direct",
-        participants: [
-          { userId: senderId, joinedAt: new Date() },
-          { userId: recipientId, joinedAt: new Date() },
-        ],
-        lastMessageAt: new Date(),
-        unreadCounts: new Map(),
-      });
-    }
+// swagger
+const swaggerDocument = JSON.parse(fs.readFileSync("./src/swagger.json", "utf8"));
 
-    const message = await Message.create({
-      conversationId: conversation._id,
-      senderId,
-      content,
-    });
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-    updateConversationAfterCreateMessage(conversation, message, senderId);
-    await conversation.save();
-    emitNewMessage(io, conversation, message);
+// public routes
+app.use("/api/auth", authRoute);
 
-    return res.status(201).json({ message });
-  } catch (error) {
-    console.error("Lỗi xảy ra khi gửi tin nhắn trực tiếp", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
-  }
-};
+// private routes
+app.use(protectedRoute);
+app.use("/api/users", userRoute);
+app.use("/api/friends", friendRoute);
+app.use("/api/messages", messageRoute);
+app.use("/api/conversations", conversationRoute);
 
-export const sendGroupMessage = async (req, res) => {
-  try {
-    const { conversationId, content } = req.body;
-    const senderId = req.user._id;
-    const conversation = req.conversation;
-
-    if (!content) {
-      return res.status(400).json("Thiếu nội dung");
-    }
-
-    const message = await Message.create({
-      conversationId,
-      senderId,
-      content,
-    });
-
-    updateConversationAfterCreateMessage(conversation, message, senderId);
-    await conversation.save();
-    emitNewMessage(io, conversation, message);
-
-    return res.status(201).json({ message });
-  } catch (error) {
-    console.error("Lỗi xảy ra khi gửi tin nhắn nhóm", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
-  }
-};
-
-export const uploadVoiceMessage = async (req, res) => {
-  try {
-    const { conversationId, duration } = req.body;
-    const senderId = req.user._id;
-
-    if (!req.file) {
-      return res.status(400).json({ message: "Thiếu file âm thanh" });
-    }
-
-    if (!conversationId) {
-      return res.status(400).json({ message: "Thiếu conversationId" });
-    }
-
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
-    }
-
-    const b64 = Buffer.from(req.file.buffer).toString("base64");
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-    const uploadResult = await cloudinary.uploader.upload(dataURI, {
-      resource_type: "video",
-      folder: "voice-messages",
-    });
-
-    const message = await Message.create({
-      conversationId,
-      senderId,
-      content: "🎤 Tin nhắn thoại",
-      voiceUrl: uploadResult.secure_url,
-      voiceDuration: duration ? parseInt(duration) : null,
-    });
-
-    updateConversationAfterCreateMessage(conversation, message, senderId);
-    await conversation.save();
-    emitNewMessage(io, conversation, message);
-
-    return res.status(201).json({ message });
-  } catch (error) {
-    console.error("Lỗi khi upload voice message:", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
-  }
-};
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`server bắt đầu trên cổng ${PORT}`);
+  });
+});
