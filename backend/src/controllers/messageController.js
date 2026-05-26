@@ -5,7 +5,7 @@ import {
   updateConversationAfterCreateMessage,
 } from "../utils/messageHelper.js";
 import { io } from "../socket/index.js";
-import cloudinary from "../libs/cloudinary.js";
+import { v2 as cloudinary } from "cloudinary";
 
 export const sendDirectMessage = async (req, res) => {
   try {
@@ -96,11 +96,10 @@ export const uploadVoiceMessage = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
     }
 
-    // Upload lên Cloudinary
     const b64 = Buffer.from(req.file.buffer).toString("base64");
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
     const uploadResult = await cloudinary.uploader.upload(dataURI, {
-      resource_type: "video", // Cloudinary dùng "video" cho cả audio
+      resource_type: "video",
       folder: "voice-messages",
     });
 
@@ -116,9 +115,9 @@ export const uploadVoiceMessage = async (req, res) => {
     await conversation.save();
     emitNewMessage(io, conversation, message);
 
-    return res.status(201).json({ 
+    return res.status(201).json({
       message,
-      voiceUrl: uploadResult.secure_url 
+      voiceUrl: uploadResult.secure_url,
     });
   } catch (error) {
     console.error("Lỗi khi upload voice message:", error);
