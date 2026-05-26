@@ -116,7 +116,10 @@ export const uploadVoiceMessage = async (req, res) => {
     await conversation.save();
     emitNewMessage(io, conversation, message);
 
-    return res.status(201).json({ message });
+    return res.status(201).json({ 
+      message,
+      voiceUrl: uploadResult.secure_url 
+    });
   } catch (error) {
     console.error("Lỗi khi upload voice message:", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });

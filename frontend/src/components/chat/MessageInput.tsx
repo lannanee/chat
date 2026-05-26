@@ -49,35 +49,15 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
     try {
       setUploadingVoice(true);
 
-      // Upload file
+      // Upload file to server - this endpoint also creates the message
       const formData = new FormData();
       formData.append("file", audioBlob, "voice-message.webm");
       formData.append("duration", duration.toString());
+      formData.append("conversationId", selectedConvo._id);
 
-      const uploadResponse = await axios.post("/messages/upload-voice", formData, {
+      await axios.post("/messages/upload-voice", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      const { voiceUrl } = uploadResponse.data;
-
-      // Send message with voice URL
-      if (selectedConvo.type === "direct") {
-        const participants = selectedConvo.participants;
-        const otherUser = participants.filter((p) => p._id !== user._id)[0];
-        
-        // Using a custom send function to include voice
-        await axios.post("/messages/send-voice", {
-          conversationId: selectedConvo._id,
-          voiceUrl,
-          voiceDuration: duration,
-        });
-      } else {
-        await axios.post("/messages/send-voice", {
-          conversationId: selectedConvo._id,
-          voiceUrl,
-          voiceDuration: duration,
-        });
-      }
 
       toast.success("Tin nhắn thoại đã gửi!");
       setShowVoiceRecorder(false);
