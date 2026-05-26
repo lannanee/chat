@@ -3,6 +3,7 @@ import {
   sendDirectMessage,
   sendGroupMessage,
   uploadVoiceMessage,
+  uploadImageMessage,
 } from "../controllers/messageController.js";
 import {
   checkFriendship,
@@ -16,5 +17,6 @@ const router = express.Router();
 router.post("/direct", checkFriendship, sendDirectMessage);
 router.post("/group", checkGroupMembership, sendGroupMessage);
 router.post("/upload-voice", protectedRoute, upload.single("file"), uploadVoiceMessage);
+router.post("/upload-image", protectedRoute, upload.single("file"), uploadImageMessage);
 
 export default router;

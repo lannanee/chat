@@ -124,3 +124,48 @@ export const uploadVoiceMessage = async (req, res) => {
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+
+export const uploadImageMessage = async (req, res) => {
+  try {
+    const { conversationId } = req.body;
+    const senderId = req.user._id;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Thiếu file ảnh" });
+    }
+
+    if (!conversationId) {
+      return res.status(400).json({ message: "Thiếu conversationId" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    const b64 = Buffer.from(req.file.buffer).toString("base64");
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const uploadResult = await cloudinary.uploader.upload(dataURI, {
+      resource_type: "image",
+      folder: "image-messages",
+    });
+
+    const message = await Message.create({
+      conversationId,
+      senderId,
+      imgUrl: uploadResult.secure_url,
+    });
+
+    updateConversationAfterCreateMessage(conversation, message, senderId);
+    await conversation.save();
+    emitNewMessage(io, conversation, message);
+
+    return res.status(201).json({
+      message,
+      imgUrl: uploadResult.secure_url,
+    });
+  } catch (error) {
+    console.error("Lỗi khi upload image message:", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
