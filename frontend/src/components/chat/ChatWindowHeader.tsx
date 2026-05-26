@@ -8,6 +8,7 @@ import StatusBadge from "./StatusBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
 import { useSocketStore } from "@/stores/useSocketStore";
 import CallButtons from "@/components/call/CallButtons";
+import AddGroupMembersModal from "./AddGroupMembersModal";
 
 const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
   const { conversations, activeConversationId } = useChatStore();
@@ -33,6 +34,10 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
     if (!user || !otherUser) return;
   }
 
+  const isGroupCreator =
+    chat.type === "group" &&
+    chat.group?.createdBy?.toString() === user?._id?.toString();
+
   return (
     <header className="sticky top-0 z-10 px-4 py-2 flex items-center justify-between bg-background border-b">
       <div className="flex items-center gap-2">
@@ -52,7 +57,6 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
                   name={otherUser?.displayName || "Camiu"}
                   avatarUrl={otherUser?.avatarUrl || undefined}
                 />
-                {/* todo: socket io */}
                 <StatusBadge
                   status={
                     onlineUsers.includes(otherUser?._id ?? "") ? "online" : "offline"
@@ -74,8 +78,13 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
         </div>
       </div>
 
-      {/* Call buttons */}
-      <CallButtons chat={chat} />
+      <div className="flex items-center gap-1">
+        {/* Nút thêm thành viên — chỉ hiện với người tạo nhóm */}
+        {isGroupCreator && <AddGroupMembersModal conversation={chat} />}
+
+        {/* Call buttons */}
+        <CallButtons chat={chat} />
+      </div>
     </header>
   );
 };

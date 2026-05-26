@@ -18,7 +18,6 @@ export const chatService = {
     const res = await api.get(
       `/conversations/${id}/messages?limit=${pageLimit}&cursor=${cursor}`
     );
-
     return { messages: res.data.messages, cursor: res.data.nextCursor };
   },
 
@@ -34,7 +33,6 @@ export const chatService = {
       imgUrl,
       conversationId,
     });
-
     return res.data.message;
   },
 
@@ -67,6 +65,11 @@ export const chatService = {
 
   async deleteConversation(conversationId: string) {
     const res = await api.delete(`/conversations/${conversationId}`);
+    return res.data;
+  },
+
+  async addGroupMembers(conversationId: string, memberIds: string[]) {
+    const res = await api.post(`/conversations/${conversationId}/members`, { memberIds });
     return res.data;
   },
 };

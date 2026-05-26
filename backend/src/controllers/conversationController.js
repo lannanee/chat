@@ -300,3 +300,72 @@ export const deleteConversation = async (req, res) => {
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };
+export const addGroupMembers = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { memberIds } = req.body;
+    const userId = req.user._id.toString();
+
+    if (!memberIds || !Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({ message: "Danh sách thành viên không hợp lệ" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Không tìm thấy nhóm" });
+    }
+
+    if (conversation.type !== "group") {
+      return res.status(400).json({ message: "Chỉ có thể thêm thành viên vào nhóm" });
+    }
+
+    // Chỉ người tạo nhóm mới được thêm thành viên
+    if (conversation.group?.createdBy.toString() !== userId) {
+      return res.status(403).json({ message: "Chỉ người tạo nhóm mới có thể thêm thành viên" });
+    }
+
+    // Lọc ra những người chưa trong nhóm
+    const existingIds = conversation.participants.map((p) => p.userId.toString());
+    const newIds = memberIds.filter((id) => !existingIds.includes(id.toString()));
+
+    if (newIds.length === 0) {
+      return res.status(400).json({ message: "Tất cả thành viên đã có trong nhóm" });
+    }
+
+    // Thêm thành viên mới
+    const newParticipants = newIds.map((id) => ({
+      userId: id,
+      joinedAt: new Date(),
+    }));
+
+    conversation.participants.push(...newParticipants);
+    await conversation.save();
+
+    await conversation.populate([
+      { path: "participants.userId", select: "displayName avatarUrl" },
+    ]);
+
+    const participants = conversation.participants.map((p) => ({
+      _id: p.userId?._id,
+      displayName: p.userId?.displayName,
+      avatarUrl: p.userId?.avatarUrl ?? null,
+      joinedAt: p.joinedAt,
+    }));
+
+    const formatted = { ...conversation.toObject(), participants };
+
+    // Emit cho tất cả thành viên cũ
+    io.to(conversationId).emit("group-updated", formatted);
+
+    // Emit cho thành viên mới để họ thấy nhóm
+    newIds.forEach((id) => {
+      io.to(id.toString()).emit("new-group", formatted);
+    });
+
+    return res.status(200).json({ conversation: formatted });
+  } catch (error) {
+    console.error("Lỗi khi thêm thành viên nhóm", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
