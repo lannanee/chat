@@ -1,9 +1,11 @@
-import { cn, formatMessageTime } from "@/lib/utils";
+import { cn, formatMessageTime, formatFileSize } from "@/lib/utils";
 import type { Conversation, Message, Participant } from "@/types/chat";
 import UserAvatar from "./UserAvatar";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { VoiceMessagePlayer } from "@/components/call/VoiceMessagePlayer";
+import { FileText, Download, FileImage, FileVideo, FileAudio, File } from "lucide-react";
+import { Button } from "../ui/button";
 
 interface MessageItemProps {
   message: Message;
@@ -12,6 +14,15 @@ interface MessageItemProps {
   selectedConvo: Conversation;
   lastMessageStatus: "delivered" | "seen";
 }
+
+const getFileIcon = (fileType: string) => {
+  if (fileType.startsWith("image/")) return <FileImage className="size-5" />;
+  if (fileType.startsWith("video/")) return <FileVideo className="size-5" />;
+  if (fileType.startsWith("audio/")) return <FileAudio className="size-5" />;
+  if (fileType.includes("pdf") || fileType.includes("word") || fileType.includes("text"))
+    return <FileText className="size-5" />;
+  return <File className="size-5" />;
+};
 
 const MessageItem = ({
   message,
@@ -26,7 +37,7 @@ const MessageItem = ({
     index === 0 ||
     new Date(message.createdAt).getTime() -
       new Date(prev?.createdAt || 0).getTime() >
-      300000; // 5 phút
+      300000;
 
   const isGroupBreak = isShowTime || message.senderId !== prev?.senderId;
 
@@ -70,7 +81,7 @@ const MessageItem = ({
           )}
         >
           {/* Text message */}
-          {message.content && (
+          {message.content && !message.voiceUrl && (
             <Card
               className={cn(
                 "p-3",
@@ -103,7 +114,42 @@ const MessageItem = ({
             </Card>
           )}
 
-          {/* seen/ delivered */}
+          {/* File message */}
+          {message.fileUrl && (
+            <Card
+              className={cn(
+                "p-3 min-w-[200px]",
+                message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-primary shrink-0">
+                  {getFileIcon(message.fileType ?? "")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {message.fileName ?? "File"}
+                  </p>
+                  {message.fileSize && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(message.fileSize)}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  onClick={() => window.open(message.fileUrl, "_blank")}
+                  title="Tải xuống"
+                >
+                  <Download className="size-4" />
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* seen/delivered */}
           {message.isOwn && message._id === selectedConvo.lastMessage?._id && (
             <Badge
               variant="outline"

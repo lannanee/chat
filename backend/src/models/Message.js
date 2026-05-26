@@ -24,7 +24,19 @@ const messageSchema = new mongoose.Schema(
       type: String,
     },
     voiceDuration: {
-      type: Number, // duration in milliseconds
+      type: Number,
+    },
+    fileUrl: {
+      type: String,
+    },
+    fileName: {
+      type: String,
+    },
+    fileType: {
+      type: String,
+    },
+    fileSize: {
+      type: Number,
     },
   },
   {

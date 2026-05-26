@@ -2,7 +2,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import type { Conversation } from "@/types/chat";
 import { useState, useRef } from "react";
 import { Button } from "../ui/button";
-import { ImagePlus, Send, Mic, Loader2 } from "lucide-react";
+import { ImagePlus, Send, Mic, Loader2, Paperclip } from "lucide-react";
 import { Input } from "../ui/input";
 import EmojiPicker from "./EmojiPicker";
 import { useChatStore } from "@/stores/useChatStore";
@@ -17,9 +17,13 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) return;
+
+  const isUploading = uploadingVoice || uploadingImage || uploadingFile;
 
   const sendMessage = async () => {
     if (!value.trim()) return;
@@ -99,6 +103,35 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
       toast.error("Lỗi khi gửi ảnh. Vui lòng thử lại!");
     } finally {
       setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File không được vượt quá 20MB!");
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("conversationId", selectedConvo._id);
+
+      await axios.post("/messages/upload-file", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast.success("File đã gửi!");
+    } catch (error) {
+      console.error("Error sending file:", error);
+      toast.error("Lỗi khi gửi file. Vui lòng thử lại!");
+    } finally {
+      setUploadingFile(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -106,21 +139,29 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
   return (
     <>
       <div className="flex items-center gap-2 p-3 min-h-[56px] bg-background border-t">
-        {/* Hidden file input */}
+        {/* Hidden image input */}
         <input
-          ref={fileInputRef}
+          ref={imageInputRef}
           type="file"
           accept="image/*"
           className="hidden"
           onChange={handleImageSelect}
         />
 
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+
         {/* Image button */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadingImage || uploadingVoice}
+          onClick={() => imageInputRef.current?.click()}
+          disabled={isUploading}
           className="hover:bg-primary/10 transition-smooth"
           title="Gửi ảnh"
         >
@@ -131,12 +172,28 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
           )}
         </Button>
 
+        {/* File button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="hover:bg-primary/10 transition-smooth"
+          title="Gửi file tài liệu"
+        >
+          {uploadingFile ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Paperclip className="size-4" />
+          )}
+        </Button>
+
         {/* Voice Message Button */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setShowVoiceRecorder(!showVoiceRecorder)}
-          disabled={uploadingVoice || uploadingImage}
+          disabled={isUploading}
           className="hover:bg-primary/10 transition-smooth"
           title="Ghi âm tin nhắn thoại"
         >
@@ -150,7 +207,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
             onChange={(e) => setValue(e.target.value)}
             placeholder="Soạn tin nhắn..."
             className="pr-20 h-9 bg-white border-border/50 focus:border-primary/50 transition-smooth resize-none"
-            disabled={uploadingVoice || uploadingImage}
+            disabled={isUploading}
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
             <Button
@@ -158,7 +215,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
               variant="ghost"
               size="icon"
               className="size-8 hover:bg-primary/10 transition-smooth"
-              disabled={uploadingVoice || uploadingImage}
+              disabled={isUploading}
             >
               <div>
                 <EmojiPicker
@@ -172,7 +229,7 @@ const MessageInput = ({ selectedConvo }: { selectedConvo: Conversation }) => {
         <Button
           onClick={sendMessage}
           className="bg-gradient-chat hover:shadow-glow transition-smooth hover:scale-105"
-          disabled={!value.trim() || uploadingVoice || uploadingImage}
+          disabled={!value.trim() || isUploading}
         >
           <Send className="size-4 text-white" />
         </Button>

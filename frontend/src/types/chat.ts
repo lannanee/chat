@@ -52,6 +52,10 @@ export interface Message {
   imgUrl?: string | null;
   voiceUrl?: string | null;       // URL bản ghi âm
   voiceDuration?: number;          // thời lượng ghi âm (ms)
+  fileUrl?: string | null;      // thêm
+  fileName?: string | null;     // thêm
+  fileType?: string | null;     // thêm
+  fileSize?: number;            // thêm
   updatedAt?: string | null;
   createdAt: string;
   isOwn?: boolean;
