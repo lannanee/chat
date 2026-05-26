@@ -4,6 +4,7 @@ import {
   sendGroupMessage,
   uploadVoiceMessage,
   uploadImageMessage,
+  uploadFileMessage,
 } from "../controllers/messageController.js";
 import {
   checkFriendship,
