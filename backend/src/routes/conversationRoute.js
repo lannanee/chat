@@ -8,6 +8,7 @@ import {
   addGroupMembers,
 } from "../controllers/conversationController.js";
 import { checkFriendship } from "../middlewares/friendMiddleware.js";
+import { protectedRoute } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
