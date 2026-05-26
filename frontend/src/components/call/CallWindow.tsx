@@ -221,13 +221,3 @@ const CallWindow = () => {
 };
 
 export default CallWindow;
-          title="Kết thúc cuộc gọi"
-        >
-          <PhoneOff className="h-6 w-6" />
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-export default CallWindow;
