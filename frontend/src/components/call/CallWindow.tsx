@@ -46,14 +46,15 @@ const CallWindow = () => {
 
   // Khi status chuyển sang "active", người gọi tạo WebRTC offer
   useEffect(() => {
-    if (
-      activeCall?.status === "active" &&
-      activeCall.caller._id === user?._id
-    ) {
-      createOffer(activeCall.remoteUser._id, activeCall.callId);
-      setCallStartTime(Date.now());
-    }
-  }, [activeCall?.status]);
+  if (
+    activeCall?.status === "active" &&
+    activeCall.caller._id === user?._id &&
+    activeCall.callId // ← đảm bảo có callId thật
+  ) {
+    createOffer(activeCall.remoteUser._id, activeCall.callId);
+    setCallStartTime(Date.now());
+  }
+}, [activeCall?.status, activeCall?.callId]); // ← thêm callId vào deps
 
   // Tính toán thời lượng cuộc gọi
   useEffect(() => {

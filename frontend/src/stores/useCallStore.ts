@@ -50,46 +50,54 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   startCall: async (callType: CallType, remoteUser, conversationId, caller) => {
-    try {
-      const socket = useSocketStore.getState().socket;
-      const user = useAuthStore.getState().user;
+  try {
+    const socket = useSocketStore.getState().socket;
+    const user = useAuthStore.getState().user;
 
-      if (!socket || !user) return;
+    if (!socket || !user) return;
 
-      const callId = `${conversationId}_${Date.now()}`;
+    // Tạo ActiveCall tạm với status "calling", chưa có callId thật
+    const tempCall: ActiveCall = {
+      callId: "", // chờ server trả về
+      callType,
+      conversationId,
+      status: "calling",
+      caller: {
+        _id: caller.userId,
+        displayName: caller.displayName,
+        avatarUrl: caller.avatarUrl,
+      },
+      remoteUser: {
+        _id: remoteUser.userId,
+        displayName: remoteUser.displayName,
+        avatarUrl: remoteUser.avatarUrl,
+      },
+      startedAt: Date.now(),
+    };
 
-      // Tạo ActiveCall object
-      const newCall: ActiveCall = {
-        callId,
-        callType,
-        conversationId,
-        status: "calling",
-        caller: {
-          _id: caller.userId,
-          displayName: caller.displayName,
-          avatarUrl: caller.avatarUrl,
-        },
-        remoteUser: {
-          _id: remoteUser.userId,
-          displayName: remoteUser.displayName,
-          avatarUrl: remoteUser.avatarUrl,
-        },
-        startedAt: Date.now(),
-      };
+    set({ activeCall: tempCall, status: "calling" });
 
-      set({ activeCall: newCall, status: "calling" });
+    // Gửi signal và chờ callId thật từ server
+    socket.emit("call:initiate", {
+      conversationId,
+      callType,
+      targetUserIds: [remoteUser.userId],
+    });
 
-      // Gửi signal call:initiate đến server
-      socket.emit("call:initiate", {
-        conversationId,
-        callType,
-        targetUserIds: [remoteUser.userId],
-      });
-    } catch (error) {
-      console.error("Error starting call:", error);
-      set({ status: "idle" });
-    }
-  },
+    // Nhận callId thật từ server
+    socket.once("call:initiated", ({ callId }: { callId: string }) => {
+      set((state) => ({
+        activeCall: state.activeCall
+          ? { ...state.activeCall, callId }
+          : null,
+      }));
+    });
+
+  } catch (error) {
+    console.error("Error starting call:", error);
+    set({ status: "idle" });
+  }
+},
 
   cleanup: () => {
     const { localStream, peerConnection } = get();

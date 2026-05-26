@@ -14,7 +14,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     const accessToken = useAuthStore.getState().accessToken;
     const existingSocket = get().socket;
 
-    if (existingSocket) return; // tránh tạo nhiều socket
+    if (existingSocket) return;
 
     const socket: Socket = io(baseURL, {
       auth: { token: accessToken },
@@ -88,23 +88,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     socket.on("group-deleted", ({ conversationId }) => {
       try {
         const chatStore = useChatStore.getState();
-        chatStore.set = (updater: any) => {
-          updater((state: any) => ({
-            conversations: state.conversations.filter(
-              (c: any) => c._id !== conversationId
-            ),
-            activeConversationId:
-              state.activeConversationId === conversationId
-                ? null
-                : state.activeConversationId,
-          }));
-        };
-
-        const state = chatStore;
-        if (state.activeConversationId === conversationId) {
-          // Cleanup handled by the store filter above
+        chatStore.removeConversation(conversationId);
+        if (chatStore.activeConversationId === conversationId) {
+          chatStore.setActiveConversation(null);
         }
-
         console.log("Group chat deleted:", conversationId);
       } catch (error) {
         console.error("Error handling group-deleted event:", error);
@@ -112,7 +99,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     });
 
     // ═════════════════════════════════════════════════════════════
-    // ─ CALL EVENTS (VOICE CALL / VIDEO CALL) ─
+    // ─ CALL EVENTS ─
     // ═════════════════════════════════════════════════════════════
 
     // ─ INCOMING CALL ─
@@ -140,9 +127,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       try {
         const callStore = useCallStore.getState();
         const currentCall = callStore.activeCall;
-        if (currentCall && currentCall.callId === callId) {
+        if (currentCall && (currentCall.callId === callId || currentCall.callId === "")) {
           callStore.setActiveCall({
             ...currentCall,
+            callId,
             status: "active",
             remoteUser: acceptedBy,
           });
