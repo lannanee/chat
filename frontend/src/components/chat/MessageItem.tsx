@@ -3,6 +3,7 @@ import type { Conversation, Message, Participant } from "@/types/chat";
 import UserAvatar from "./UserAvatar";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
+import { VoiceMessagePlayer } from "@/components/call/VoiceMessagePlayer";
 
 interface MessageItemProps {
   message: Message;
@@ -68,14 +69,39 @@ const MessageItem = ({
             message.isOwn ? "items-end" : "items-start"
           )}
         >
-          <Card
-            className={cn(
-              "p-3",
-              message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received"
-            )}
-          >
-            <p className="text-sm leading-relaxed break-words">{message.content}</p>
-          </Card>
+          {/* Text message */}
+          {message.content && (
+            <Card
+              className={cn(
+                "p-3",
+                message.isOwn ? "chat-bubble-sent border-0" : "chat-bubble-received"
+              )}
+            >
+              <p className="text-sm leading-relaxed break-words">{message.content}</p>
+            </Card>
+          )}
+
+          {/* Voice message */}
+          {message.voiceUrl && (
+            <div className="p-2">
+              <VoiceMessagePlayer
+                voiceUrl={message.voiceUrl}
+                duration={message.voiceDuration}
+                displayName={participant?.displayName ?? "Unknown"}
+              />
+            </div>
+          )}
+
+          {/* Image message */}
+          {message.imgUrl && (
+            <Card className="overflow-hidden border-0">
+              <img
+                src={message.imgUrl}
+                alt="message"
+                className="max-w-xs lg:max-w-md h-auto rounded-lg"
+              />
+            </Card>
+          )}
 
           {/* seen/ delivered */}
           {message.isOwn && message._id === selectedConvo.lastMessage?._id && (

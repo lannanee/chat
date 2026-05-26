@@ -7,6 +7,7 @@ import UserAvatar from "./UserAvatar";
 import StatusBadge from "./StatusBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
 import { useSocketStore } from "@/stores/useSocketStore";
+import CallButtons from "@/components/call/CallButtons";
 
 const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
   const { conversations, activeConversationId } = useChatStore();
@@ -33,15 +34,15 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
   }
 
   return (
-    <header className="sticky top-0 z-10 px-4 py-2 flex items-center bg-background">
-      <div className="flex items-center gap-2 w-full">
+    <header className="sticky top-0 z-10 px-4 py-2 flex items-center justify-between bg-background border-b">
+      <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1 text-foreground" />
         <Separator
           orientation="vertical"
           className="mr-2 data-[orientation=vertical]:h-4"
         />
 
-        <div className="p-2 w-full flex items-center gap-3">
+        <div className="p-2 flex items-center gap-3">
           {/* avatar */}
           <div className="relative">
             {chat.type === "direct" ? (
@@ -72,6 +73,9 @@ const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
           </h2>
         </div>
       </div>
+
+      {/* Call buttons */}
+      <CallButtons chat={chat} />
     </header>
   );
 };
