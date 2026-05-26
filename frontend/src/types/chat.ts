@@ -50,6 +50,8 @@ export interface Message {
   senderId: string;
   content: string | null;
   imgUrl?: string | null;
+  voiceUrl?: string | null;       // URL bản ghi âm
+  voiceDuration?: number;          // thời lượng ghi âm (ms)
   updatedAt?: string | null;
   createdAt: string;
   isOwn?: boolean;

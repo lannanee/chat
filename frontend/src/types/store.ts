@@ -1,6 +1,7 @@
 import type { Socket } from "socket.io-client";
 import type { Conversation, Message } from "./chat";
 import type { Friend, FriendRequest, User } from "./user";
+import type { ActiveCall } from "./call";
 
 export interface AuthState {
   accessToken: string | null;
@@ -93,4 +94,35 @@ export interface FriendState {
 
 export interface UserState {
   updateAvatarUrl: (formData: FormData) => Promise<void>;
+}
+
+export interface CallParticipantInfo {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface CallState {
+  activeCall: ActiveCall | null;
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
+  peerConnection: RTCPeerConnection | null;
+  isMuted: boolean;
+  isVideoEnabled: boolean;
+  status: "idle" | "calling" | "incoming" | "active" | "ended";
+  callDuration: number;
+  
+  setActiveCall: (call: ActiveCall | null) => void;
+  setLocalStream: (stream: MediaStream | null) => void;
+  setRemoteStream: (stream: MediaStream | null) => void;
+  setPeerConnection: (pc: RTCPeerConnection | null) => void;
+  toggleMute: () => void;
+  toggleVideo: () => void;
+  startCall: (
+    callType: "audio" | "video",
+    remoteUser: CallParticipantInfo,
+    conversationId: string,
+    caller: CallParticipantInfo
+  ) => Promise<void>;
+  cleanup: () => void;
 }
