@@ -4,23 +4,28 @@ import { useSocketStore } from "@/stores/useSocketStore";
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
     {
-      urls: "turn:openrelay.metered.ca:80",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "stun:stun.relay.metered.ca:80",
     },
     {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:standard.relay.metered.ca:80",
+      username: "5b455190fd5198e265a2f942",
+      credential: "WJX+ZamElojFB8Xw",
     },
     {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: "turn:standard.relay.metered.ca:80?transport=tcp",
+      username: "5b455190fd5198e265a2f942",
+      credential: "WJX+ZamElojFB8Xw",
+    },
+    {
+      urls: "turn:standard.relay.metered.ca:443",
+      username: "5b455190fd5198e265a2f942",
+      credential: "WJX+ZamElojFB8Xw",
+    },
+    {
+      urls: "turns:standard.relay.metered.ca:443?transport=tcp",
+      username: "5b455190fd5198e265a2f942",
+      credential: "WJX+ZamElojFB8Xw",
     },
   ],
 };
@@ -37,10 +42,23 @@ export function useWebRTC() {
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
 
+  // FIX 1: dùng ref để tránh stale closure trong socket event handlers
+  const activeCallRef = useRef(activeCall);
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  // FIX 2: queue ICE candidates nhận trước khi setRemoteDescription xong
+  const iceCandidateQueue = useRef<RTCIceCandidateInit[]>([]);
+
   const getLocalStream = useCallback(
     async (isVideo: boolean = false) => {
       const constraints = {
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 48000,
+        },
         video: isVideo
           ? {
               width: { ideal: 1280 },
@@ -59,6 +77,12 @@ export function useWebRTC() {
 
   const createPeerConnection = useCallback(
     (targetUserId: string, callId: string, stream: MediaStream) => {
+      // FIX 3: đóng PC cũ trước khi tạo mới, tránh leak
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+
       const pc = new RTCPeerConnection(ICE_SERVERS);
       pcRef.current = pc;
       setPeerConnection(pc);
@@ -68,8 +92,10 @@ export function useWebRTC() {
       });
 
       pc.ontrack = (event) => {
-        console.log("Remote track received:", event.track.kind);
-        setRemoteStream(event.streams[0]);
+        console.log("[WebRTC] ontrack:", event.track.kind, event.streams);
+        if (event.streams && event.streams[0]) {
+          setRemoteStream(event.streams[0]);
+        }
       };
 
       pc.onicecandidate = (event) => {
@@ -83,14 +109,14 @@ export function useWebRTC() {
       };
 
       pc.onconnectionstatechange = () => {
-        console.log("WebRTC connection state:", pc.connectionState);
+        console.log("[WebRTC] connectionState:", pc.connectionState);
         if (pc.connectionState === "failed") {
-          console.error("WebRTC connection failed");
+          console.error("[WebRTC] Connection failed — kiểm tra TURN server");
         }
       };
 
       pc.oniceconnectionstatechange = () => {
-        console.log("ICE connection state:", pc.iceConnectionState);
+        console.log("[WebRTC] iceConnectionState:", pc.iceConnectionState);
       };
 
       return pc;
@@ -100,7 +126,8 @@ export function useWebRTC() {
 
   const createOffer = useCallback(
     async (targetUserId: string, callId: string) => {
-      const isVideo = activeCall?.callType === "video";
+      // FIX 4: đọc callType từ ref, không từ closure có thể stale
+      const isVideo = activeCallRef.current?.callType === "video";
       const stream = await getLocalStream(isVideo);
       const pc = createPeerConnection(targetUserId, callId, stream);
 
@@ -112,7 +139,7 @@ export function useWebRTC() {
 
       socket?.emit("webrtc:offer", { callId, targetUserId, offer });
     },
-    [socket, activeCall?.callType, getLocalStream, createPeerConnection]
+    [socket, getLocalStream, createPeerConnection]
   );
 
   useEffect(() => {
@@ -128,11 +155,19 @@ export function useWebRTC() {
       offer: RTCSessionDescriptionInit;
     }) => {
       try {
-        const isVideo = activeCall?.callType === "video";
+        // FIX 5: đọc callType từ ref — tránh stale closure
+        const isVideo = activeCallRef.current?.callType === "video";
         const stream = await getLocalStream(isVideo);
         const pc = createPeerConnection(fromUserId, callId, stream);
 
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // FIX 6: flush ICE candidates đã queue trước đó
+        for (const candidate of iceCandidateQueue.current) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        iceCandidateQueue.current = [];
+
         const answer = await pc.createAnswer({
           offerToReceiveAudio: true,
           offerToReceiveVideo: isVideo,
@@ -145,7 +180,7 @@ export function useWebRTC() {
           answer,
         });
       } catch (error) {
-        console.error("Error handling offer:", error);
+        console.error("[WebRTC] Error handling offer:", error);
       }
     };
 
@@ -158,8 +193,14 @@ export function useWebRTC() {
         await pcRef.current?.setRemoteDescription(
           new RTCSessionDescription(answer)
         );
+
+        // FIX 7: flush ICE candidates queue sau khi setRemoteDescription
+        for (const candidate of iceCandidateQueue.current) {
+          await pcRef.current?.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        iceCandidateQueue.current = [];
       } catch (error) {
-        console.error("Error handling answer:", error);
+        console.error("[WebRTC] Error handling answer:", error);
       }
     };
 
@@ -168,12 +209,16 @@ export function useWebRTC() {
     }: {
       candidate: RTCIceCandidateInit;
     }) => {
+      if (!candidate) return;
       try {
-        if (candidate) {
-          await pcRef.current?.addIceCandidate(new RTCIceCandidate(candidate));
+        if (!pcRef.current || !pcRef.current.remoteDescription) {
+          // FIX 8: queue lại thay vì bỏ qua — tránh race condition
+          iceCandidateQueue.current.push(candidate);
+          return;
         }
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (error) {
-        console.error("Error adding ICE candidate:", error);
+        console.error("[WebRTC] Error adding ICE candidate:", error);
       }
     };
 
@@ -186,7 +231,7 @@ export function useWebRTC() {
       socket.off("webrtc:answer", handleAnswer);
       socket.off("webrtc:ice", handleIce);
     };
-  }, [socket, activeCall?.callType, getLocalStream, createPeerConnection]);
+  }, [socket, getLocalStream, createPeerConnection]);
 
   return { createOffer, getLocalStream, cleanup };
 }
