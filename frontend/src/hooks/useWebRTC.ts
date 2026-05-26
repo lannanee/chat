@@ -2,11 +2,26 @@ import { useEffect, useRef, useCallback } from "react";
 import { useCallStore } from "@/stores/useCallStore";
 import { useSocketStore } from "@/stores/useSocketStore";
 
-// Cấu hình ICE servers
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
 };
 
@@ -22,7 +37,6 @@ export function useWebRTC() {
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
 
-  // ── Lấy stream từ người dùng ────────────────────────────────────
   const getLocalStream = useCallback(
     async (isVideo: boolean = false) => {
       const constraints = {
@@ -43,25 +57,21 @@ export function useWebRTC() {
     [setLocalStream]
   );
 
-  // ── Tạo RTCPeerConnection ────────────────────────────────────────
   const createPeerConnection = useCallback(
     (targetUserId: string, callId: string, stream: MediaStream) => {
       const pc = new RTCPeerConnection(ICE_SERVERS);
       pcRef.current = pc;
       setPeerConnection(pc);
 
-      // Thêm tất cả tracks từ local stream
       stream.getTracks().forEach((track) => {
         pc.addTrack(track, stream);
       });
 
-      // Nhận remote tracks
       pc.ontrack = (event) => {
         console.log("Remote track received:", event.track.kind);
         setRemoteStream(event.streams[0]);
       };
 
-      // ICE candidates
       pc.onicecandidate = (event) => {
         if (event.candidate && socket) {
           socket.emit("webrtc:ice", {
@@ -88,7 +98,6 @@ export function useWebRTC() {
     [socket, setRemoteStream, setPeerConnection]
   );
 
-  // ── Người GỌI: Tạo và gửi Offer ─────────────────────────────────
   const createOffer = useCallback(
     async (targetUserId: string, callId: string) => {
       const isVideo = activeCall?.callType === "video";
@@ -106,11 +115,9 @@ export function useWebRTC() {
     [socket, activeCall?.callType, getLocalStream, createPeerConnection]
   );
 
-  // ── Lắng nghe các WebRTC events từ socket ───────────────────────
   useEffect(() => {
     if (!socket) return;
 
-    // Người NHẬN nhận được Offer → tạo Answer
     const handleOffer = async ({
       fromUserId,
       callId,
@@ -142,7 +149,6 @@ export function useWebRTC() {
       }
     };
 
-    // Người GỌI nhận được Answer
     const handleAnswer = async ({
       answer,
     }: {
@@ -157,7 +163,6 @@ export function useWebRTC() {
       }
     };
 
-    // Cả hai phía nhận ICE candidate
     const handleIce = async ({
       candidate,
     }: {
