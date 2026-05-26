@@ -81,6 +81,3 @@ const OutgoingCallOverlay = () => {
 };
 
 export default OutgoingCallOverlay;
-};
-
-export default OutgoingCallOverlay;
