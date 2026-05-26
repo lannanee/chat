@@ -8,7 +8,7 @@ import StatusBadge from "./StatusBadge";
 import GroupChatAvatar from "./GroupChatAvatar";
 import { useSocketStore } from "@/stores/useSocketStore";
 import CallButtons from "@/components/call/CallButtons";
-//import AddGroupMembersModal from "./AddGroupMembersModal";
+import AddGroupMembersModal from "./AddGroupMembersModal";
 
 const ChatWindowHeader = ({ chat }: { chat?: Conversation }) => {
   const { conversations, activeConversationId } = useChatStore();
